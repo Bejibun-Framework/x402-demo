@@ -1,0 +1,19 @@
+{
+  "name": "x402-demo-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Express resource server paywalled with x402 v2 (Base Sepolia, USDC)",
+  "scripts": {
+    "dev": "node --watch index.js",
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@x402/core": "^2.3.0",
+    "@x402/evm": "^2.9.0",
+    "@x402/express": "^2.3.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  }
+}

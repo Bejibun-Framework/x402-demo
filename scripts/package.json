@@ -1,0 +1,17 @@
+{
+  "name": "x402-demo-batch-settlement-client",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone Node client demonstrating the x402 batch-settlement scheme",
+  "scripts": {
+    "start": "node batch-settlement-client.mjs"
+  },
+  "dependencies": {
+    "@x402/core": "^2.3.0",
+    "@x402/evm": "^2.9.0",
+    "@x402/fetch": "^2.1.0",
+    "dotenv": "^16.4.5",
+    "viem": "^2.21.0"
+  }
+}
