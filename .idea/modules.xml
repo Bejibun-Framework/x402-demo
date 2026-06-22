@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/x402-demo-all-scheme.iml" filepath="$PROJECT_DIR$/.idea/x402-demo-all-scheme.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/x402-demo.iml" filepath="$PROJECT_DIR$/.idea/x402-demo.iml" />
     </modules>
   </component>
 </project>
