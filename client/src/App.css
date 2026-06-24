@@ -383,3 +383,212 @@ code {
     text-transform: uppercase;
     letter-spacing: 0.08em;
 }
+
+/* ── URL Request Card ─────────────────────────────────────────────────────── */
+.request-card {
+    border: 1px solid var(--border);
+    background: var(--panel);
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.url-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--panel-raised);
+    transition: border-color 0.15s ease;
+}
+
+.url-row:focus-within {
+    border-color: var(--amber);
+}
+
+.url-method {
+    flex-shrink: 0;
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--amber);
+    background: rgba(255, 180, 84, 0.07);
+    border-right: 1px solid var(--border);
+    user-select: none;
+}
+
+.url-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--text);
+    padding: 10px 12px;
+    caret-color: var(--amber);
+}
+
+.url-input::placeholder {
+    color: var(--text-dim);
+    opacity: 0.6;
+}
+
+/* ── Scheme Detector ─────────────────────────────────────────────────────── */
+.scheme-detector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.scheme-detector__desc {
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+.scheme-tag--auto {
+    color: var(--text-dim);
+    background: rgba(138, 146, 163, 0.1);
+    border-color: rgba(138, 146, 163, 0.3);
+}
+
+/* ── Endpoint Hints ─────────────────────────────────────────────────────── */
+.endpoint-hints {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.hints-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    flex-shrink: 0;
+}
+
+.hint-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--panel-raised);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-family: inherit;
+    font-size: 12px;
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.hint-chip:hover {
+    border-color: rgba(255, 180, 84, 0.4);
+    background: rgba(255, 180, 84, 0.05);
+}
+
+.hint-chip__note {
+    color: var(--text-dim);
+    font-size: 11px;
+}
+
+/* ── Send Button ─────────────────────────────────────────────────────────── */
+.send-btn {
+    width: 100%;
+    padding: 11px 16px;
+}
+
+/* ── Output Block ────────────────────────────────────────────────────────── */
+.output-block {
+    border: 1px solid var(--border);
+    background: var(--panel-raised);
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.output-block__header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.output-block__label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--green);
+    flex: 1;
+}
+
+.output-block__meta {
+    font-size: 11px;
+    color: var(--text-dim);
+}
+
+.output-block__scroll {
+    max-height: 220px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+
+.output-block__scroll::-webkit-scrollbar {
+    width: 5px;
+}
+
+.output-block__scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.output-block__scroll::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 999px;
+}
+
+.output-block__pre {
+    margin: 0;
+    padding: 14px;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* ── Copy Button ─────────────────────────────────────────────────────────── */
+.copy-btn {
+    flex-shrink: 0;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.copy-btn:hover {
+    color: var(--text);
+    border-color: rgba(255, 180, 84, 0.4);
+}
+
+.copy-btn--copied {
+    color: var(--green) !important;
+    border-color: rgba(52, 211, 153, 0.35) !important;
+    background: rgba(52, 211, 153, 0.07) !important;
+}
