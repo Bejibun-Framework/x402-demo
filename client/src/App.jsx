@@ -5,6 +5,8 @@ import logo from "./images/bejibun.png";
 
 const RESOURCE_URL = import.meta.env.VITE_RESOURCE_SERVER_URL || "http://localhost:3000";
 
+const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
+
 function shorten(value, lead = 6, tail = 4) {
     if (!value) return "";
     return value.length > lead + tail ? `${value.slice(0, lead)}…${value.slice(-tail)}` : value;
@@ -27,20 +29,6 @@ const CHIP_STYLES = {
     error: {label: "✕", className: "chip chip--red"},
 };
 
-// Detect scheme from URL path
-function detectSchemeFromPath(path) {
-    const normalized = path.toLowerCase();
-    if (normalized.includes("/api/generate")) return "upto";
-    if (normalized.includes("/api/test")) return "exact";
-    return null; // unknown, let server 402 tell us
-}
-
-function getSchemeLabel(scheme) {
-    if (scheme === "exact") return {label: "EXACT", description: "Fixed price per call"};
-    if (scheme === "upto") return {label: "UPTO", description: "Usage-based, settle actual amount"};
-    return {label: "AUTO", description: "Scheme detected from server response"};
-}
-
 function LogLine({entry}) {
     const style = CHIP_STYLES[entry.kind] ?? CHIP_STYLES.request;
     return (
@@ -60,7 +48,6 @@ function OutputBlock({result, endpointScheme, copied, onCopy}) {
     let displayText;
     if (typeof result === "object") {
         if (result.result !== undefined) {
-            // upto / generate
             displayText = result.result;
         } else {
             displayText = JSON.stringify(result, null, 2);
@@ -91,10 +78,72 @@ function OutputBlock({result, endpointScheme, copied, onCopy}) {
     );
 }
 
+function ParamsEditor({params, onChange}) {
+    const addRow = () => onChange([...params, {key: "", value: "", enabled: true}]);
+    const removeRow = (i) => onChange(params.filter((_, idx) => idx !== i));
+    const updateRow = (i, field, val) => {
+        const next = params.map((p, idx) => idx === i ? {...p, [field]: val} : p);
+        onChange(next);
+    };
+
+    return (
+        <div className="params-editor">
+            <div className="params-editor__header">
+                <span className="params-editor__title">Query Params</span>
+                <button className="params-add-btn" onClick={addRow}>+ Add</button>
+            </div>
+            {params.length === 0 && (
+                <div className="params-empty">No params yet. Click + Add to insert a row.</div>
+            )}
+            {params.map((row, i) => (
+                <div className="params-row" key={i}>
+                    <input
+                        type="checkbox"
+                        className="params-check"
+                        checked={row.enabled}
+                        onChange={(e) => updateRow(i, "enabled", e.target.checked)}
+                    />
+                    <input
+                        className="params-input"
+                        placeholder="Key"
+                        value={row.key}
+                        onChange={(e) => updateRow(i, "key", e.target.value)}
+                    />
+                    <span className="params-eq">=</span>
+                    <input
+                        className="params-input"
+                        placeholder="Value"
+                        value={row.value}
+                        onChange={(e) => updateRow(i, "value", e.target.value)}
+                    />
+                    <button className="params-remove-btn" onClick={() => removeRow(i)}>✕</button>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function buildUrlWithParams(baseUrl, params) {
+    const activeParams = params.filter(p => p.enabled && p.key.trim());
+    if (activeParams.length === 0) return baseUrl;
+    try {
+        const url = new URL(baseUrl);
+        activeParams.forEach(p => url.searchParams.set(p.key.trim(), p.value));
+        return url.toString();
+    } catch {
+        // fallback for relative urls
+        const qs = activeParams.map(p => `${encodeURIComponent(p.key.trim())}=${encodeURIComponent(p.value)}`).join("&");
+        return baseUrl.includes("?") ? `${baseUrl}&${qs}` : `${baseUrl}?${qs}`;
+    }
+}
+
 export default function App() {
     const [wallet, setWallet] = useState(null);
     const [connecting, setConnecting] = useState(false);
-    const [urlInput, setUrlInput] = useState("/api/test");
+    const [urlInput, setUrlInput] = useState("http://localhost:3000/api/test");
+    const [method, setMethod] = useState("GET");
+    const [params, setParams] = useState([]);
+    const [activeTab, setActiveTab] = useState("params");
     const [isRequesting, setIsRequesting] = useState(false);
     const [log, setLog] = useState([]);
     const [result, setResult] = useState(null);
@@ -121,12 +170,20 @@ export default function App() {
     const handleSend = useCallback(async () => {
         if (!wallet || !urlInput.trim()) return;
 
-        const rawPath = urlInput.trim().startsWith("http") ? urlInput.trim() : urlInput.trim();
-        const fullUrl = rawPath.startsWith("http") ? rawPath : `${RESOURCE_URL}${rawPath.startsWith("/") ? rawPath : "/" + rawPath}`;
-        const path = rawPath.startsWith("http") ? new URL(rawPath).pathname : (rawPath.startsWith("/") ? rawPath : "/" + rawPath);
+        const rawUrl = urlInput.trim();
+        const fullUrl = buildUrlWithParams(
+            rawUrl.startsWith("http") ? rawUrl : `${RESOURCE_URL}${rawUrl.startsWith("/") ? rawUrl : "/" + rawUrl}`,
+            params
+        );
 
-        const guessedScheme = detectSchemeFromPath(path);
-        setDetectedScheme(guessedScheme);
+        let path;
+        try {
+            path = new URL(fullUrl).pathname + new URL(fullUrl).search;
+        } catch {
+            path = fullUrl;
+        }
+
+        setDetectedScheme(null);
         setIsRequesting(true);
         setError(null);
         setSettlement(null);
@@ -140,7 +197,7 @@ export default function App() {
             setTimeout(() => logRef.current?.scrollTo({top: logRef.current.scrollHeight, behavior: "smooth"}), 50);
         };
 
-        pushLog({kind: "request", text: `GET ${path}`});
+        pushLog({kind: "request", text: `${method} ${path}`});
 
         const {fetchWithPayment, httpClient} = createPaymentFetch({
             walletClient: wallet.walletClient,
@@ -148,7 +205,6 @@ export default function App() {
             onEvent: (evt) => {
                 if (evt.type === "payment-required") {
                     const r = evt.requirements;
-                    // Update detected scheme from actual server response
                     if (r.scheme) setDetectedScheme(r.scheme);
                     pushLog({
                         kind: "status-402",
@@ -158,7 +214,7 @@ export default function App() {
                     pushLog({kind: "wallet", text: "Requesting signature in wallet (EIP-712)…"});
                 } else if (evt.type === "payment-signed") {
                     pushLog({kind: "signed", text: "Payment authorization signed"});
-                    pushLog({kind: "request", text: `GET ${path}  (+ PAYMENT-SIGNATURE header)`});
+                    pushLog({kind: "request", text: `${method} ${path}  (+ PAYMENT-SIGNATURE header)`});
                 } else if (evt.type === "payment-failed") {
                     pushLog({kind: "error", text: `Payment failed: ${humanizeError(evt.error)}`});
                 }
@@ -166,7 +222,7 @@ export default function App() {
         });
 
         try {
-            const response = await fetchWithPayment(fullUrl);
+            const response = await fetchWithPayment(fullUrl, {method});
             if (!response.ok) {
                 const text = await response.text().catch(() => "");
                 throw new Error(text || `Request failed with status ${response.status}`);
@@ -179,10 +235,9 @@ export default function App() {
             const settle = readSettlement(httpClient, response);
             if (settle) {
                 setSettlement(settle);
-                const finalScheme = detectedScheme || guessedScheme;
                 pushLog({
                     kind: "settled",
-                    text: finalScheme === "exact" ? "Payment settled on-chain" : "Payment settled on-chain (actual usage only)",
+                    text: detectedScheme === "exact" ? "Payment settled on-chain" : "Payment settled on-chain (actual usage only)",
                     detail: settle.transaction ? `tx ${shorten(settle.transaction)}` : "confirmed by facilitator",
                 });
             }
@@ -193,7 +248,7 @@ export default function App() {
         } finally {
             setIsRequesting(false);
         }
-    }, [wallet, urlInput, detectedScheme]);
+    }, [wallet, urlInput, method, params, detectedScheme]);
 
     const handleCopy = useCallback(() => {
         if (!result) return;
@@ -204,7 +259,10 @@ export default function App() {
         });
     }, [result]);
 
-    const schemeInfo = getSchemeLabel(detectedScheme);
+    // Build preview URL with params
+    const previewUrl = params.some(p => p.enabled && p.key.trim())
+        ? buildUrlWithParams(urlInput, params)
+        : null;
 
     return (
         <div className="page">
@@ -243,51 +301,55 @@ export default function App() {
                     </div>
 
                     <div className="request-card">
+                        {/* Method + Full URL row */}
                         <div className="url-row">
-                            <span className="url-method">GET</span>
+                            <select
+                                className="method-select"
+                                value={method}
+                                onChange={(e) => setMethod(e.target.value)}
+                            >
+                                {HTTP_METHODS.map(m => (
+                                    <option key={m} value={m}>{m}</option>
+                                ))}
+                            </select>
                             <input
                                 className="url-input"
                                 type="text"
                                 value={urlInput}
-                                onChange={(e) => {
-                                    setUrlInput(e.target.value);
-                                    setDetectedScheme(detectSchemeFromPath(e.target.value));
-                                }}
+                                onChange={(e) => setUrlInput(e.target.value)}
                                 onKeyDown={(e) => e.key === "Enter" && wallet && !isRequesting && handleSend()}
-                                placeholder="/api/test  or  https://..."
+                                placeholder="https://api.example.com/endpoint"
                                 spellCheck={false}
                                 autoComplete="off"
                             />
                         </div>
 
-                        <div className="scheme-detector">
-                            <span className={`scheme-tag scheme-tag--${detectedScheme || "auto"}`}>
-                                {schemeInfo.label}
-                            </span>
-                            <span className="scheme-detector__desc">{schemeInfo.description}</span>
+                        {/* Preview URL when params are active */}
+                        {previewUrl && (
+                            <div className="url-preview">
+                                <span className="url-preview__label">Preview:</span>
+                                <span className="url-preview__url">{previewUrl}</span>
+                            </div>
+                        )}
+
+                        {/* Tabs: Params / Headers (future) */}
+                        <div className="req-tabs">
+                            <button
+                                className={`req-tab${activeTab === "params" ? " req-tab--active" : ""}`}
+                                onClick={() => setActiveTab("params")}
+                            >
+                                Params
+                                {params.filter(p => p.enabled && p.key.trim()).length > 0 && (
+                                    <span className="req-tab__badge">
+                                        {params.filter(p => p.enabled && p.key.trim()).length}
+                                    </span>
+                                )}
+                            </button>
                         </div>
 
-                        <div className="endpoint-hints">
-                            <span className="hints-label">Try:</span>
-                            {[
-                                {path: "/api/test", scheme: "exact", note: "$0.001 fixed"},
-                                {path: "/api/generate", scheme: "upto", note: "up to $0.05"},
-                            ].map((h) => (
-                                <button
-                                    key={h.path}
-                                    className="hint-chip"
-                                    onClick={() => {
-                                        setUrlInput(h.path);
-                                        setDetectedScheme(h.scheme);
-                                    }}
-                                >
-                                    <span className={`scheme-tag scheme-tag--${h.scheme}`}
-                                          style={{fontSize: "9px", padding: "2px 5px"}}>{h.scheme}</span>
-                                    {h.path}
-                                    <span className="hint-chip__note">{h.note}</span>
-                                </button>
-                            ))}
-                        </div>
+                        {activeTab === "params" && (
+                            <ParamsEditor params={params} onChange={setParams}/>
+                        )}
 
                         <button
                             className="btn btn--primary send-btn"
