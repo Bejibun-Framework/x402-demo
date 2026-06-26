@@ -9,7 +9,7 @@ export default defineConfig({
         react(),
         nodePolyfills({globals: {Buffer: true, global: true, process: true}}),
     ],
-    base: "/x402-demo",
+    base: "/x402-playground",
     server: {
         port: 5173,
     },
