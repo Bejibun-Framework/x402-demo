@@ -12,6 +12,8 @@ import logo from "./images/bejibun.png";
 const RESOURCE_URL = import.meta.env.VITE_RESOURCE_SERVER_URL || "http://localhost:4021";
 
 const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
+const BODY_METHODS = ["POST", "PUT", "PATCH"];
+const BODY_TYPES = ["json", "form-data", "x-www-form-urlencoded", "raw", "none"];
 
 function shorten(value, lead = 6, tail = 4) {
     if (!value) return "";
@@ -59,14 +61,14 @@ function OutputBlock({result, endpointScheme, copied, onCopy}) {
     return (
         <div className="output-block">
             <div className="output-block__header">
-        <span className="output-block__label">
-          {endpointScheme === "upto" ? "Generated — settled by usage" : "Response"}
-        </span>
+                <span className="output-block__label">
+                    {endpointScheme === "upto" ? "Generated — settled by usage" : "Response"}
+                </span>
                 {result.usage && (
                     <span className="output-block__meta">
-            authorized {formatUsdc(result.usage.authorizedMaxAtomic)} · charged{" "}
+                        authorized {formatUsdc(result.usage.authorizedMaxAtomic)} · charged{" "}
                         {formatUsdc(result.usage.actualChargedAtomic)}
-          </span>
+                    </span>
                 )}
                 <button className={`copy-btn${copied ? " copy-btn--copied" : ""}`} onClick={onCopy}>
                     {copied ? "✓ Copied" : "Copy"}
@@ -79,32 +81,106 @@ function OutputBlock({result, endpointScheme, copied, onCopy}) {
     );
 }
 
-function ParamsEditor({params, onChange}) {
-    const addRow = () => onChange([...params, {key: "", value: "", enabled: true}]);
-    const removeRow = (i) => onChange(params.filter((_, idx) => idx !== i));
+// Generic key-value editor (Params / Headers / Form fields)
+function KeyValueEditor({rows, onChange, keyPlaceholder = "Key", valuePlaceholder = "Value", title}) {
+    const addRow = () => onChange([...rows, {key: "", value: "", enabled: true}]);
+    const removeRow = (i) => onChange(rows.filter((_, idx) => idx !== i));
     const updateRow = (i, field, val) => {
-        const next = params.map((p, idx) => (idx === i ? {...p, [field]: val} : p));
+        const next = rows.map((p, idx) => (idx === i ? {...p, [field]: val} : p));
         onChange(next);
     };
     return (
         <div className="params-editor">
             <div className="params-editor__header">
-                <span className="params-editor__title">Query Params</span>
+                <span className="params-editor__title">{title}</span>
                 <button className="params-add-btn" onClick={addRow}>+ Add</button>
             </div>
-            {params.length === 0 && <div className="params-empty">No params yet. Click + Add to insert a row.</div>}
-            {params.map((row, i) => (
+            {rows.length === 0 && (
+                <div className="params-empty">No {title.toLowerCase()} yet. Click + Add to insert a row.</div>
+            )}
+            {rows.map((row, i) => (
                 <div className="params-row" key={i}>
                     <input type="checkbox" className="params-check" checked={row.enabled}
                            onChange={(e) => updateRow(i, "enabled", e.target.checked)}/>
-                    <input className="params-input" placeholder="Key" value={row.key}
+                    <input className="params-input" placeholder={keyPlaceholder} value={row.key}
                            onChange={(e) => updateRow(i, "key", e.target.value)}/>
                     <span className="params-eq">=</span>
-                    <input className="params-input" placeholder="Value" value={row.value}
+                    <input className="params-input" placeholder={valuePlaceholder} value={row.value}
                            onChange={(e) => updateRow(i, "value", e.target.value)}/>
                     <button className="params-remove-btn" onClick={() => removeRow(i)}>✕</button>
                 </div>
             ))}
+        </div>
+    );
+}
+
+// Body editor — JSON / form-data / urlencoded / raw / none
+function BodyEditor({
+                        bodyType,
+                        onBodyTypeChange,
+                        bodyJson,
+                        onBodyJsonChange,
+                        bodyFields,
+                        onBodyFieldsChange,
+                        bodyRaw,
+                        onBodyRawChange
+                    }) {
+    return (
+        <div className="body-editor">
+            <div className="body-editor__header">
+                <span className="params-editor__title">Body</span>
+                <div className="body-type-tabs">
+                    {BODY_TYPES.map((t) => (
+                        <button
+                            key={t}
+                            className={`body-type-tab${bodyType === t ? " body-type-tab--active" : ""}`}
+                            onClick={() => onBodyTypeChange(t)}
+                        >
+                            {t}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {bodyType === "none" && (
+                <div className="params-empty">This request has no body.</div>
+            )}
+
+            {bodyType === "json" && (
+                <div className="body-raw-wrap">
+                    <div className="body-raw-lang">JSON</div>
+                    <textarea
+                        className="body-textarea"
+                        value={bodyJson}
+                        onChange={(e) => onBodyJsonChange(e.target.value)}
+                        placeholder={'{\n  "key": "value"\n}'}
+                        spellCheck={false}
+                    />
+                </div>
+            )}
+
+            {bodyType === "raw" && (
+                <div className="body-raw-wrap">
+                    <div className="body-raw-lang">Text</div>
+                    <textarea
+                        className="body-textarea"
+                        value={bodyRaw}
+                        onChange={(e) => onBodyRawChange(e.target.value)}
+                        placeholder="Raw body text…"
+                        spellCheck={false}
+                    />
+                </div>
+            )}
+
+            {(bodyType === "form-data" || bodyType === "x-www-form-urlencoded") && (
+                <KeyValueEditor
+                    rows={bodyFields}
+                    onChange={onBodyFieldsChange}
+                    title={bodyType === "form-data" ? "Form Data" : "URL-Encoded Fields"}
+                    keyPlaceholder="Field name"
+                    valuePlaceholder="Value"
+                />
+            )}
         </div>
     );
 }
@@ -124,25 +200,153 @@ function buildUrlWithParams(baseUrl, params) {
     }
 }
 
+function buildHeaders(headers) {
+    const result = {};
+    headers.filter((h) => h.enabled && h.key.trim()).forEach((h) => {
+        result[h.key.trim()] = h.value;
+    });
+    return result;
+}
+
+function buildBody(bodyType, bodyJson, bodyFields, bodyRaw) {
+    if (bodyType === "none") return {body: undefined, contentType: null};
+    if (bodyType === "json") {
+        const trimmed = bodyJson.trim();
+        return trimmed
+            ? {body: trimmed, contentType: "application/json"}
+            : {body: undefined, contentType: null};
+    }
+    if (bodyType === "raw") {
+        const trimmed = bodyRaw.trim();
+        return trimmed
+            ? {body: trimmed, contentType: "text/plain"}
+            : {body: undefined, contentType: null};
+    }
+    if (bodyType === "form-data") {
+        const fd = new FormData();
+        bodyFields.filter((f) => f.enabled && f.key.trim()).forEach((f) => fd.append(f.key.trim(), f.value));
+        return {body: fd, contentType: null}; // browser sets multipart boundary automatically
+    }
+    if (bodyType === "x-www-form-urlencoded") {
+        const active = bodyFields.filter((f) => f.enabled && f.key.trim());
+        if (active.length === 0) return {body: undefined, contentType: null};
+        const encoded = active
+            .map((f) => `${encodeURIComponent(f.key.trim())}=${encodeURIComponent(f.value)}`)
+            .join("&");
+        return {body: encoded, contentType: "application/x-www-form-urlencoded"};
+    }
+    return {body: undefined, contentType: null};
+}
+
 const SOL_LABELS = {phantom: "Phantom", metamask: "MetaMask", walletconnect: "WalletConnect"};
 
+// Network toggle for navbar
+function NavbarNetworkToggle({network, onChange}) {
+    const isEvm = network === "evm";
+    return (
+        <div className="navbar-network-toggle">
+            <button
+                className={`navbar-net-btn${isEvm ? " navbar-net-btn--active" : ""}`}
+                onClick={() => onChange("evm")}
+            >
+                EVM
+            </button>
+            <button
+                className={`navbar-net-btn${!isEvm ? " navbar-net-btn--active" : ""}`}
+                onClick={() => onChange("solana")}
+            >
+                Solana
+            </button>
+        </div>
+    );
+}
+
+// Wallet connect area for navbar
+function NavbarWalletConnect({
+                                 network,
+                                 evmWallet,
+                                 solWallet,
+                                 evmConnecting,
+                                 solConnecting,
+                                 onConnectEvm,
+                                 onConnectSol,
+                                 onDisconnectEvm,
+                                 onDisconnectSol
+                             }) {
+    const [open, setOpen] = useState(false);
+    const isEvm = network === "evm";
+
+    if (isEvm) {
+        if (evmWallet) {
+            return (
+                <div className="wallet-pill">
+                    <span className="wallet-pill__dot"/>
+                    {shorten(evmWallet.address)}
+                    <button className="disconnect-btn" onClick={onDisconnectEvm}>Disconnect</button>
+                </div>
+            );
+        }
+        return (
+            <button className="btn btn--ghost" onClick={onConnectEvm} disabled={evmConnecting}>
+                {evmConnecting ? "Connecting…" : "Connect EVM wallet"}
+            </button>
+        );
+    }
+
+    // Solana
+    if (solWallet) {
+        return (
+            <div className="wallet-pill">
+                <span className="wallet-pill__dot"/>
+                {shorten(solWallet.pubkey)} · {SOL_LABELS[solWallet.kind] ?? solWallet.kind}
+                <button className="disconnect-btn" onClick={onDisconnectSol}>Disconnect</button>
+            </div>
+        );
+    }
+
+    return (
+        <div style={{position: "relative", flex: "1 1 auto"}}>
+            <button className="btn btn--ghost" style={{width: "100%"}} onClick={() => setOpen((v) => !v)}
+                    disabled={solConnecting}>
+                {solConnecting ? "Connecting…" : "Connect Solana wallet ▾"}
+            </button>
+            {open && (
+                <div className="sol-dropdown">
+                    {["phantom", "metamask", "walletconnect"].map((kind) => (
+                        <button key={kind} className="sol-dropdown__item"
+                                onClick={() => {
+                                    onConnectSol(kind);
+                                    setOpen(false);
+                                }}>
+                            {SOL_LABELS[kind]}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function App() {
-    // Network selection: "evm" | "solana"
     const [network, setNetwork] = useState("evm");
 
-    // EVM wallet state
     const [evmWallet, setEvmWallet] = useState(null);
     const [evmConnecting, setEvmConnecting] = useState(false);
-
-    // Solana wallet state
-    const [solWallet, setSolWallet] = useState(null); // { provider, pubkey, kind, adapter? }
+    const [solWallet, setSolWallet] = useState(null);
     const [solConnecting, setSolConnecting] = useState(false);
 
-    // Request state
     const [urlInput, setUrlInput] = useState(`${RESOURCE_URL}/api/quote`);
     const [method, setMethod] = useState("GET");
     const [params, setParams] = useState([]);
+    const [headers, setHeaders] = useState([]);
     const [activeTab, setActiveTab] = useState("params");
+
+    // Body state
+    const [bodyType, setBodyType] = useState("none");
+    const [bodyJson, setBodyJson] = useState("");
+    const [bodyRaw, setBodyRaw] = useState("");
+    const [bodyFields, setBodyFields] = useState([]);
+
     const [isRequesting, setIsRequesting] = useState(false);
     const [log, setLog] = useState([]);
     const [result, setResult] = useState(null);
@@ -153,7 +357,11 @@ export default function App() {
 
     const logRef = useRef(null);
 
-    // --- EVM connect ----------------------------------------------------------
+    const handleNetworkChange = useCallback((net) => {
+        setNetwork(net);
+        setError(null);
+    }, []);
+
     const handleConnectEvm = useCallback(async () => {
         setEvmConnecting(true);
         setError(null);
@@ -167,7 +375,6 @@ export default function App() {
         }
     }, []);
 
-    // --- Solana connect -------------------------------------------------------
     const handleConnectSol = useCallback(async (kind) => {
         setSolConnecting(true);
         setError(null);
@@ -194,7 +401,19 @@ export default function App() {
         setSolWallet(null);
     }, [solWallet]);
 
-    // --- Send request ---------------------------------------------------------
+    const handleDisconnectEvm = useCallback(() => setEvmWallet(null), []);
+
+    const handleMethodChange = useCallback((m) => {
+        setMethod(m);
+        if (BODY_METHODS.includes(m)) {
+            // auto-switch to body tab when picking a body method
+            if (activeTab === "params" && bodyType === "none") setBodyType("json");
+            setActiveTab("body");
+        } else {
+            if (activeTab === "body") setActiveTab("params");
+        }
+    }, [activeTab, bodyType]);
+
     const handleSend = useCallback(async () => {
         const isEvm = network === "evm";
         if (isEvm && !evmWallet) return;
@@ -206,6 +425,15 @@ export default function App() {
             rawUrl.startsWith("http") ? rawUrl : `${RESOURCE_URL}${rawUrl.startsWith("/") ? rawUrl : "/" + rawUrl}`,
             params
         );
+
+        const extraHeaders = buildHeaders(headers);
+        const {body, contentType} = buildBody(bodyType, bodyJson, bodyFields, bodyRaw);
+
+        // Merge content-type unless user already set it
+        const finalHeaders = {...extraHeaders};
+        if (contentType && !finalHeaders["Content-Type"] && !finalHeaders["content-type"]) {
+            finalHeaders["Content-Type"] = contentType;
+        }
 
         let path;
         try {
@@ -249,9 +477,7 @@ export default function App() {
                     });
                     pushLog({
                         kind: "wallet",
-                        text: isEvm
-                            ? "Requesting signature in wallet (EIP-712)…"
-                            : "Requesting Solana transaction signature…",
+                        text: isEvm ? "Requesting signature in wallet (EIP-712)…" : "Requesting Solana transaction signature…",
                     });
                 } else if (evt.type === "payment-signed") {
                     pushLog({kind: "signed", text: "Payment authorization signed"});
@@ -263,7 +489,13 @@ export default function App() {
         });
 
         try {
-            const response = await fetchWithPayment(fullUrl, {method});
+            const fetchOptions = {
+                method,
+                ...(Object.keys(finalHeaders).length > 0 ? {headers: finalHeaders} : {}),
+                ...(body !== undefined ? {body} : {}),
+            };
+
+            const response = await fetchWithPayment(fullUrl, fetchOptions);
             if (!response.ok) {
                 const text = await response.text().catch(() => "");
                 throw new Error(text || `Request failed with status ${response.status}`);
@@ -276,18 +508,12 @@ export default function App() {
             const settle = readSettlement(httpClient, response);
             if (settle) {
                 setSettlement(settle);
-                const explorerBase = isEvm
-                    ? "https://sepolia.basescan.org/tx/"
-                    : "https://solscan.io/tx/";
+                const explorerBase = isEvm ? "https://sepolia.basescan.org/tx/" : "https://solscan.io/tx/";
                 pushLog({
                     kind: "settled",
-                    text:
-                        detectedScheme === "exact"
-                            ? "Payment settled on-chain"
-                            : "Payment settled on-chain (actual usage only)",
+                    text: detectedScheme === "exact" ? "Payment settled on-chain" : "Payment settled on-chain (actual usage only)",
                     detail: settle.transaction ? `tx ${shorten(settle.transaction)}` : "confirmed by facilitator",
                 });
-                // store explorerBase for the link below
                 settle._explorerBase = explorerBase;
             }
         } catch (err) {
@@ -297,60 +523,62 @@ export default function App() {
         } finally {
             setIsRequesting(false);
         }
-    }, [network, evmWallet, solWallet, urlInput, method, params, detectedScheme]);
+    }, [network, evmWallet, solWallet, urlInput, method, params, headers, bodyType, bodyJson, bodyFields, bodyRaw, detectedScheme]);
 
     const handleCopy = useCallback(() => {
         if (!result) return;
-        const text =
-            typeof result === "object" ? (result.result ?? JSON.stringify(result, null, 2)) : String(result);
+        const text = typeof result === "object" ? (result.result ?? JSON.stringify(result, null, 2)) : String(result);
         navigator.clipboard.writeText(text).then(() => {
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         });
     }, [result]);
 
+    // Preview URL always reflects query params
     const previewUrl = params.some((p) => p.enabled && p.key.trim())
         ? buildUrlWithParams(urlInput, params)
         : null;
 
     const isEvm = network === "evm";
     const walletReady = isEvm ? !!evmWallet : !!solWallet;
+    const isBodyMethod = BODY_METHODS.includes(method);
+
+    const activeParamsCount = params.filter((p) => p.enabled && p.key.trim()).length;
+    const activeHeadersCount = headers.filter((h) => h.enabled && h.key.trim()).length;
+    const activeBodyCount = bodyType !== "none" && bodyType !== "json" && bodyType !== "raw"
+        ? bodyFields.filter((f) => f.enabled && f.key.trim()).length
+        : (bodyType === "json" && bodyJson.trim() ? 1 : bodyType === "raw" && bodyRaw.trim() ? 1 : 0);
 
     return (
         <div className="page">
             <header className="topbar">
                 <div className="brand">
-          <span className="brand__mark">
-            <img src={logo} alt="Bejibun" width={32}/>
-          </span>
-                    <div>
+                    <span className="brand__mark">
+                        <img src={logo} alt="Bejibun" width={32}/>
+                    </span>
+                    <div className="brand__text">
                         <div className="brand__title">Bejibun x402 Playground</div>
                         <div className="brand__subtitle">A place for you to play with x402 protocol</div>
                     </div>
                 </div>
-                {isEvm ? (
-                    evmWallet ? (
-                        <div className="wallet-pill">
-                            <span className="wallet-pill__dot"/>
-                            {shorten(evmWallet.address)}
-                        </div>
-                    ) : (
-                        <button className="btn btn--ghost" onClick={handleConnectEvm} disabled={evmConnecting}>
-                            {evmConnecting ? "Connecting…" : "Connect EVM wallet"}
-                        </button>
-                    )
-                ) : (
-                    solWallet ? (
-                        <div className="wallet-pill">
-                            <span className="wallet-pill__dot"/>
-                            {shorten(solWallet.pubkey)} · {SOL_LABELS[solWallet.kind] ?? solWallet.kind}
-                        </div>
-                    ) : null
-                )}
+
+                <div className="navbar-right">
+                    <NavbarNetworkToggle network={network} onChange={handleNetworkChange}/>
+                    <NavbarWalletConnect
+                        network={network}
+                        evmWallet={evmWallet}
+                        solWallet={solWallet}
+                        evmConnecting={evmConnecting}
+                        solConnecting={solConnecting}
+                        onConnectEvm={handleConnectEvm}
+                        onConnectSol={handleConnectSol}
+                        onDisconnectEvm={handleDisconnectEvm}
+                        onDisconnectSol={handleDisconnectSol}
+                    />
+                </div>
             </header>
 
             <main className="layout">
-                {/* LEFT: Request panel */}
                 <section className="panel">
                     <div className="panel__header">
                         <span className="panel__eyebrow">Resources</span>
@@ -360,79 +588,11 @@ export default function App() {
                         </p>
                     </div>
 
-                    {/* Network selector */}
-                    <div className="network-tabs">
-                        <button
-                            className={`network-tab${isEvm ? " network-tab--active" : ""}`}
-                            onClick={() => {
-                                setNetwork("evm");
-                                setError(null);
-                            }}
-                        >
-                            Base Sepolia (EVM)
-                        </button>
-                        <button
-                            className={`network-tab${!isEvm ? " network-tab--active" : ""}`}
-                            onClick={() => {
-                                setNetwork("solana");
-                                setError(null);
-                            }}
-                        >
-                            Solana
-                        </button>
-                    </div>
-
-                    {/* Wallet connect area */}
-                    <div className="wallet-area">
-                        {isEvm ? (
-                            evmWallet ? (
-                                <div className="wallet-connected">
-                  <span className="wallet-pill wallet-pill--inline">
-                    <span className="wallet-pill__dot"/>{shorten(evmWallet.address)}
-                  </span>
-                                    <button className="btn btn--ghost btn--sm"
-                                            onClick={() => setEvmWallet(null)}>Disconnect
-                                    </button>
-                                </div>
-                            ) : (
-                                <button className="btn btn--ghost" onClick={handleConnectEvm} disabled={evmConnecting}>
-                                    {evmConnecting ? "Connecting…" : "Connect EVM wallet (MetaMask / injected)"}
-                                </button>
-                            )
-                        ) : (
-                            solWallet ? (
-                                <div className="wallet-connected">
-                  <span className="wallet-pill wallet-pill--inline">
-                    <span className="wallet-pill__dot"/>{shorten(solWallet.pubkey)} · {SOL_LABELS[solWallet.kind]}
-                  </span>
-                                    <button className="btn btn--ghost btn--sm"
-                                            onClick={handleDisconnectSol}>Disconnect
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="sol-connect-row">
-                                    <button className="btn btn--ghost" onClick={() => handleConnectSol("phantom")}
-                                            disabled={solConnecting}>
-                                        Phantom
-                                    </button>
-                                    <button className="btn btn--ghost" onClick={() => handleConnectSol("metamask")}
-                                            disabled={solConnecting}>
-                                        MetaMask (Solana)
-                                    </button>
-                                    <button className="btn btn--ghost" onClick={() => handleConnectSol("walletconnect")}
-                                            disabled={solConnecting}>
-                                        WalletConnect
-                                    </button>
-                                </div>
-                            )
-                        )}
-                    </div>
-
                     <div className="request-card">
                         {/* Method + URL row */}
                         <div className="url-row">
                             <select className="method-select" value={method}
-                                    onChange={(e) => setMethod(e.target.value)}>
+                                    onChange={(e) => handleMethodChange(e.target.value)}>
                                 {HTTP_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
                             </select>
                             <input
@@ -447,6 +607,7 @@ export default function App() {
                             />
                         </div>
 
+                        {/* Preview URL — always shows query params regardless of method */}
                         {previewUrl && (
                             <div className="url-preview">
                                 <span className="url-preview__label">Preview:</span>
@@ -454,21 +615,55 @@ export default function App() {
                             </div>
                         )}
 
+                        {/* Tabs */}
                         <div className="req-tabs">
                             <button
                                 className={`req-tab${activeTab === "params" ? " req-tab--active" : ""}`}
                                 onClick={() => setActiveTab("params")}
                             >
                                 Params
-                                {params.filter((p) => p.enabled && p.key.trim()).length > 0 && (
-                                    <span className="req-tab__badge">
-                    {params.filter((p) => p.enabled && p.key.trim()).length}
-                  </span>
-                                )}
+                                {activeParamsCount > 0 && <span className="req-tab__badge">{activeParamsCount}</span>}
                             </button>
+                            <button
+                                className={`req-tab${activeTab === "headers" ? " req-tab--active" : ""}`}
+                                onClick={() => setActiveTab("headers")}
+                            >
+                                Headers
+                                {activeHeadersCount > 0 && <span className="req-tab__badge">{activeHeadersCount}</span>}
+                            </button>
+                            {isBodyMethod && (
+                                <button
+                                    className={`req-tab${activeTab === "body" ? " req-tab--active" : ""}`}
+                                    onClick={() => setActiveTab("body")}
+                                >
+                                    Body
+                                    {activeBodyCount > 0 && <span className="req-tab__badge">{activeBodyCount}</span>}
+                                </button>
+                            )}
                         </div>
 
-                        {activeTab === "params" && <ParamsEditor params={params} onChange={setParams}/>}
+                        <div className="payload-scroll">
+                            {activeTab === "params" && (
+                                <KeyValueEditor rows={params} onChange={setParams} title="Query Params"
+                                                keyPlaceholder="Key" valuePlaceholder="Value"/>
+                            )}
+                            {activeTab === "headers" && (
+                                <KeyValueEditor rows={headers} onChange={setHeaders} title="Headers"
+                                                keyPlaceholder="Header name" valuePlaceholder="Value"/>
+                            )}
+                            {activeTab === "body" && isBodyMethod && (
+                                <BodyEditor
+                                    bodyType={bodyType}
+                                    onBodyTypeChange={setBodyType}
+                                    bodyJson={bodyJson}
+                                    onBodyJsonChange={setBodyJson}
+                                    bodyFields={bodyFields}
+                                    onBodyFieldsChange={setBodyFields}
+                                    bodyRaw={bodyRaw}
+                                    onBodyRawChange={setBodyRaw}
+                                />
+                            )}
+                        </div>
 
                         <button
                             className="btn btn--primary send-btn"
@@ -486,12 +681,7 @@ export default function App() {
                         {error && <div className="error-banner">{error}</div>}
                     </div>
 
-                    <OutputBlock
-                        result={result}
-                        endpointScheme={detectedScheme}
-                        copied={copied}
-                        onCopy={handleCopy}
-                    />
+                    <OutputBlock result={result} endpointScheme={detectedScheme} copied={copied} onCopy={handleCopy}/>
 
                     {settlement && (
                         <div className="settlement">
@@ -502,11 +692,8 @@ export default function App() {
                             {settlement.transaction && (
                                 <div className="settlement__row">
                                     <span>tx hash</span>
-                                    <a
-                                        href={`${settlement._explorerBase ?? "https://sepolia.basescan.org/tx/"}${settlement.transaction}`}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                    >
+                                    <a href={`${settlement._explorerBase ?? "https://sepolia.basescan.org/tx/"}${settlement.transaction}`}
+                                       target="_blank" rel="noreferrer">
                                         {shorten(settlement.transaction, 10, 8)}
                                     </a>
                                 </div>
@@ -536,7 +723,6 @@ export default function App() {
                     </p>
                 </section>
 
-                {/* RIGHT: Log panel */}
                 <section className="panel panel--log">
                     <div className="panel__header">
                         <span className="panel__eyebrow">HTTP exchange</span>
