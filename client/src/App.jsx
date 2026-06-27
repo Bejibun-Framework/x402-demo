@@ -1,13 +1,13 @@
 import {useCallback, useRef, useState} from "react";
-import {connectEvmWallet} from "./lib/wallet.js";
+import logo from "./images/bejibun.png";
 import {
     connectPhantom,
     connectSolanaMetaMask,
     connectSolanaWalletConnect,
     toSolanaSigner,
 } from "./lib/solanaSigner.js";
+import {connectEvmWallet} from "./lib/wallet.js";
 import {createPaymentFetch, readSettlement, formatUsdc} from "./lib/x402Client.js";
-import logo from "./images/bejibun.png";
 
 const RESOURCE_URL = import.meta.env.VITE_RESOURCE_SERVER_URL || "http://localhost:4021";
 
@@ -15,30 +15,55 @@ const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"
 const BODY_METHODS = ["POST", "PUT", "PATCH"];
 const BODY_TYPES = ["json", "form-data", "x-www-form-urlencoded", "raw", "none"];
 
-function shorten(value, lead = 6, tail = 4) {
+function shorten(value, lead = 5, tail = 5) {
     if (!value) return "";
+
     return value.length > lead + tail ? `${value.slice(0, lead)}…${value.slice(-tail)}` : value;
 }
 
 function humanizeError(err) {
     const message = err?.message ?? String(err);
+
     if (/user rejected|user denied/i.test(message)) return "Signature request was cancelled in your wallet.";
     if (/insufficient/i.test(message)) return "Wallet doesn't have enough USDC.";
+
     return message;
 }
 
 const CHIP_STYLES = {
-    request: {label: "→", className: "chip chip--neutral"},
-    "status-402": {label: "402", className: "chip chip--amber"},
-    wallet: {label: "✎", className: "chip chip--neutral"},
-    signed: {label: "✓", className: "chip chip--green"},
-    "status-200": {label: "200", className: "chip chip--green"},
-    settled: {label: "⛓", className: "chip chip--green"},
-    error: {label: "✕", className: "chip chip--red"},
+    request: {
+        label: "→",
+        className: "chip chip--neutral"
+    },
+    "status-402": {
+        label: "402",
+        className: "chip chip--amber"
+    },
+    wallet: {
+        label: "✎",
+        className: "chip chip--neutral"
+    },
+    signed: {
+        label: "✓",
+        className: "chip chip--green"
+    },
+    "status-200": {
+        label: "200",
+        className: "chip chip--green"
+    },
+    settled: {
+        label: "⛓",
+        className: "chip chip--green"
+    },
+    error: {
+        label: "✕",
+        className: "chip chip--red"
+    }
 };
 
 function LogLine({entry}) {
     const style = CHIP_STYLES[entry.kind] ?? CHIP_STYLES.request;
+
     return (
         <div className="log-line">
             <span className={style.className}>{style.label}</span>
@@ -52,28 +77,33 @@ function LogLine({entry}) {
 
 function OutputBlock({result, endpointScheme, copied, onCopy}) {
     if (!result) return null;
+
     let displayText;
     if (typeof result === "object") {
         displayText = result.result !== undefined ? result.result : JSON.stringify(result, null, 2);
     } else {
         displayText = String(result);
     }
+
     return (
         <div className="output-block">
             <div className="output-block__header">
                 <span className="output-block__label">
                     {endpointScheme === "upto" ? "Generated — settled by usage" : "Response"}
                 </span>
+
                 {result.usage && (
                     <span className="output-block__meta">
                         authorized {formatUsdc(result.usage.authorizedMaxAtomic)} · charged{" "}
                         {formatUsdc(result.usage.actualChargedAtomic)}
                     </span>
                 )}
+
                 <button className={`copy-btn${copied ? " copy-btn--copied" : ""}`} onClick={onCopy}>
                     {copied ? "✓ Copied" : "Copy"}
                 </button>
             </div>
+
             <div className="output-block__scroll">
                 <pre className="output-block__pre">{displayText}</pre>
             </div>
@@ -82,31 +112,54 @@ function OutputBlock({result, endpointScheme, copied, onCopy}) {
 }
 
 // Generic key-value editor (Params / Headers / Form fields)
-function KeyValueEditor({rows, onChange, keyPlaceholder = "Key", valuePlaceholder = "Value", title}) {
+function KeyValueEditor(
+    {
+        rows,
+        onChange,
+        keyPlaceholder = "Key",
+        valuePlaceholder = "Value",
+        title
+    }
+) {
     const addRow = () => onChange([...rows, {key: "", value: "", enabled: true}]);
     const removeRow = (i) => onChange(rows.filter((_, idx) => idx !== i));
     const updateRow = (i, field, val) => {
         const next = rows.map((p, idx) => (idx === i ? {...p, [field]: val} : p));
         onChange(next);
     };
+
     return (
         <div className="params-editor">
             <div className="params-editor__header">
                 <span className="params-editor__title">{title}</span>
                 <button className="params-add-btn" onClick={addRow}>+ Add</button>
             </div>
+
             {rows.length === 0 && (
                 <div className="params-empty">No {title.toLowerCase()} yet. Click + Add to insert a row.</div>
             )}
+
             {rows.map((row, i) => (
                 <div className="params-row" key={i}>
-                    <input type="checkbox" className="params-check" checked={row.enabled}
-                           onChange={(e) => updateRow(i, "enabled", e.target.checked)}/>
-                    <input className="params-input" placeholder={keyPlaceholder} value={row.key}
-                           onChange={(e) => updateRow(i, "key", e.target.value)}/>
+                    <input
+                        type="checkbox"
+                        className="params-check"
+                        checked={row.enabled}
+                        onChange={(e) => updateRow(i, "enabled", e.target.checked)}
+                    />
+                    <input
+                        className="params-input"
+                        placeholder={keyPlaceholder}
+                        value={row.key}
+                        onChange={(e) => updateRow(i, "key", e.target.value)}
+                    />
                     <span className="params-eq">=</span>
-                    <input className="params-input" placeholder={valuePlaceholder} value={row.value}
-                           onChange={(e) => updateRow(i, "value", e.target.value)}/>
+                    <input
+                        className="params-input"
+                        placeholder={valuePlaceholder}
+                        value={row.value}
+                        onChange={(e) => updateRow(i, "value", e.target.value)}
+                    />
                     <button className="params-remove-btn" onClick={() => removeRow(i)}>✕</button>
                 </div>
             ))}
@@ -115,16 +168,18 @@ function KeyValueEditor({rows, onChange, keyPlaceholder = "Key", valuePlaceholde
 }
 
 // Body editor — JSON / form-data / urlencoded / raw / none
-function BodyEditor({
-                        bodyType,
-                        onBodyTypeChange,
-                        bodyJson,
-                        onBodyJsonChange,
-                        bodyFields,
-                        onBodyFieldsChange,
-                        bodyRaw,
-                        onBodyRawChange
-                    }) {
+function BodyEditor(
+    {
+        bodyType,
+        onBodyTypeChange,
+        bodyJson,
+        onBodyJsonChange,
+        bodyFields,
+        onBodyFieldsChange,
+        bodyRaw,
+        onBodyRawChange
+    }
+) {
     return (
         <div className="body-editor">
             <div className="body-editor__header">
@@ -188,61 +243,98 @@ function BodyEditor({
 function buildUrlWithParams(baseUrl, params) {
     const activeParams = params.filter((p) => p.enabled && p.key.trim());
     if (activeParams.length === 0) return baseUrl;
+
     try {
         const url = new URL(baseUrl);
+
         activeParams.forEach((p) => url.searchParams.set(p.key.trim(), p.value));
+
         return url.toString();
     } catch {
         const qs = activeParams
             .map((p) => `${encodeURIComponent(p.key.trim())}=${encodeURIComponent(p.value)}`)
             .join("&");
+
         return baseUrl.includes("?") ? `${baseUrl}&${qs}` : `${baseUrl}?${qs}`;
     }
 }
 
 function buildHeaders(headers) {
     const result = {};
+
     headers.filter((h) => h.enabled && h.key.trim()).forEach((h) => {
         result[h.key.trim()] = h.value;
     });
+
     return result;
 }
 
 function buildBody(bodyType, bodyJson, bodyFields, bodyRaw) {
-    if (bodyType === "none") return {body: undefined, contentType: null};
+    if (bodyType === "none") return {
+        body: undefined,
+        contentType: null
+    };
+
     if (bodyType === "json") {
         const trimmed = bodyJson.trim();
+
         return trimmed
             ? {body: trimmed, contentType: "application/json"}
             : {body: undefined, contentType: null};
     }
+
     if (bodyType === "raw") {
         const trimmed = bodyRaw.trim();
+
         return trimmed
             ? {body: trimmed, contentType: "text/plain"}
             : {body: undefined, contentType: null};
     }
+
     if (bodyType === "form-data") {
         const fd = new FormData();
+
         bodyFields.filter((f) => f.enabled && f.key.trim()).forEach((f) => fd.append(f.key.trim(), f.value));
-        return {body: fd, contentType: null}; // browser sets multipart boundary automatically
+
+        return {
+            body: fd,
+            contentType: null
+        }; // browser sets multipart boundary automatically
     }
+
     if (bodyType === "x-www-form-urlencoded") {
         const active = bodyFields.filter((f) => f.enabled && f.key.trim());
-        if (active.length === 0) return {body: undefined, contentType: null};
+        if (active.length === 0) return {
+            body: undefined,
+            contentType: null
+        };
+
         const encoded = active
             .map((f) => `${encodeURIComponent(f.key.trim())}=${encodeURIComponent(f.value)}`)
             .join("&");
-        return {body: encoded, contentType: "application/x-www-form-urlencoded"};
+
+        return {
+            body: encoded,
+            contentType: "application/x-www-form-urlencoded"
+        };
     }
-    return {body: undefined, contentType: null};
+
+    return {
+        body: undefined,
+        contentType: null
+    };
 }
 
-const SOL_LABELS = {phantom: "Phantom", metamask: "MetaMask", walletconnect: "WalletConnect"};
+const SOL_LABELS = {
+    phantom: "Phantom",
+    metamask: "MetaMask",
+    walletconnect: "WalletConnect"
+};
 
 // Network toggle for navbar
 function NavbarNetworkToggle({network, onChange}) {
     const isEvm = network === "evm";
+
     return (
         <div className="navbar-network-toggle">
             <button
@@ -255,24 +347,26 @@ function NavbarNetworkToggle({network, onChange}) {
                 className={`navbar-net-btn${!isEvm ? " navbar-net-btn--active" : ""}`}
                 onClick={() => onChange("solana")}
             >
-                Solana
+                SVM
             </button>
         </div>
     );
 }
 
 // Wallet connect area for navbar
-function NavbarWalletConnect({
-                                 network,
-                                 evmWallet,
-                                 solWallet,
-                                 evmConnecting,
-                                 solConnecting,
-                                 onConnectEvm,
-                                 onConnectSol,
-                                 onDisconnectEvm,
-                                 onDisconnectSol
-                             }) {
+function NavbarWalletConnect(
+    {
+        network,
+        evmWallet,
+        solWallet,
+        evmConnecting,
+        solConnecting,
+        onConnectEvm,
+        onConnectSol,
+        onDisconnectEvm,
+        onDisconnectSol
+    }
+) {
     const [open, setOpen] = useState(false);
     const isEvm = network === "evm";
 
@@ -286,6 +380,7 @@ function NavbarWalletConnect({
                 </div>
             );
         }
+
         return (
             <button className="btn btn--ghost" onClick={onConnectEvm} disabled={evmConnecting}>
                 {evmConnecting ? "Connecting…" : "Connect EVM wallet"}
@@ -293,7 +388,6 @@ function NavbarWalletConnect({
         );
     }
 
-    // Solana
     if (solWallet) {
         return (
             <div className="wallet-pill">
@@ -306,18 +400,26 @@ function NavbarWalletConnect({
 
     return (
         <div style={{position: "relative", flex: "1 1 auto"}}>
-            <button className="btn btn--ghost" style={{width: "100%"}} onClick={() => setOpen((v) => !v)}
-                    disabled={solConnecting}>
+            <button
+                className="btn btn--ghost"
+                style={{width: "100%"}}
+                onClick={() => setOpen((v) => !v)}
+                disabled={solConnecting}
+            >
                 {solConnecting ? "Connecting…" : "Connect Solana wallet ▾"}
             </button>
+
             {open && (
                 <div className="sol-dropdown">
                     {["phantom", "metamask", "walletconnect"].map((kind) => (
-                        <button key={kind} className="sol-dropdown__item"
-                                onClick={() => {
-                                    onConnectSol(kind);
-                                    setOpen(false);
-                                }}>
+                        <button
+                            key={kind}
+                            className="sol-dropdown__item"
+                            onClick={() => {
+                                onConnectSol(kind);
+                                setOpen(false);
+                            }}
+                        >
                             {SOL_LABELS[kind]}
                         </button>
                     ))}
@@ -341,7 +443,6 @@ export default function App() {
     const [headers, setHeaders] = useState([]);
     const [activeTab, setActiveTab] = useState("params");
 
-    // Body state
     const [bodyType, setBodyType] = useState("none");
     const [bodyJson, setBodyJson] = useState("");
     const [bodyRaw, setBodyRaw] = useState("");
@@ -365,6 +466,7 @@ export default function App() {
     const handleConnectEvm = useCallback(async () => {
         setEvmConnecting(true);
         setError(null);
+
         try {
             const {walletClient, address} = await connectEvmWallet();
             setEvmWallet({walletClient, address});
@@ -378,6 +480,7 @@ export default function App() {
     const handleConnectSol = useCallback(async (kind) => {
         setSolConnecting(true);
         setError(null);
+
         try {
             const connectors = {
                 phantom: connectPhantom,
@@ -385,6 +488,7 @@ export default function App() {
                 walletconnect: connectSolanaWalletConnect,
             };
             const conn = await connectors[kind]();
+
             setSolWallet({...conn, kind});
         } catch (err) {
             setError(humanizeError(err));
@@ -396,7 +500,8 @@ export default function App() {
     const handleDisconnectSol = useCallback(async () => {
         try {
             await solWallet?.adapter?.disconnect?.();
-        } catch { /* ignore */
+        } catch {
+            /* ignore */
         }
         setSolWallet(null);
     }, [solWallet]);
@@ -405,9 +510,11 @@ export default function App() {
 
     const handleMethodChange = useCallback((m) => {
         setMethod(m);
+
         if (BODY_METHODS.includes(m)) {
             // auto-switch to body tab when picking a body method
             if (activeTab === "params" && bodyType === "none") setBodyType("json");
+
             setActiveTab("body");
         } else {
             if (activeTab === "body") setActiveTab("params");
@@ -422,7 +529,9 @@ export default function App() {
 
         const rawUrl = urlInput.trim();
         const fullUrl = buildUrlWithParams(
-            rawUrl.startsWith("http") ? rawUrl : `${RESOURCE_URL}${rawUrl.startsWith("/") ? rawUrl : "/" + rawUrl}`,
+            rawUrl.startsWith("http") ?
+                rawUrl :
+                `${RESOURCE_URL}${rawUrl.startsWith("/") ? rawUrl : "/" + rawUrl}`,
             params
         );
 
@@ -470,6 +579,7 @@ export default function App() {
                 if (evt.type === "payment-required") {
                     const r = evt.requirements;
                     if (r.scheme) setDetectedScheme(r.scheme);
+
                     pushLog({
                         kind: "status-402",
                         text: "402 Payment Required",
@@ -498,22 +608,27 @@ export default function App() {
             const response = await fetchWithPayment(fullUrl, fetchOptions);
             if (!response.ok) {
                 const text = await response.text().catch(() => "");
+
                 throw new Error(text || `Request failed with status ${response.status}`);
             }
 
             pushLog({kind: "status-200", text: "200 OK"});
+
             const data = await response.json();
             setResult(data);
 
             const settle = readSettlement(httpClient, response);
             if (settle) {
                 setSettlement(settle);
-                const explorerBase = isEvm ? "https://sepolia.basescan.org/tx/" : "https://solscan.io/tx/";
+
+                const explorerBase = isEvm ? "https://basescan.org/tx/" : "https://solscan.io/tx/";
+
                 pushLog({
                     kind: "settled",
                     text: detectedScheme === "exact" ? "Payment settled on-chain" : "Payment settled on-chain (actual usage only)",
                     detail: settle.transaction ? `tx ${shorten(settle.transaction)}` : "confirmed by facilitator",
                 });
+
                 settle._explorerBase = explorerBase;
             }
         } catch (err) {
@@ -523,11 +638,26 @@ export default function App() {
         } finally {
             setIsRequesting(false);
         }
-    }, [network, evmWallet, solWallet, urlInput, method, params, headers, bodyType, bodyJson, bodyFields, bodyRaw, detectedScheme]);
+    }, [
+        network,
+        evmWallet,
+        solWallet,
+        urlInput,
+        method,
+        params,
+        headers,
+        bodyType,
+        bodyJson,
+        bodyFields,
+        bodyRaw,
+        detectedScheme
+    ]);
 
     const handleCopy = useCallback(() => {
         if (!result) return;
+
         const text = typeof result === "object" ? (result.result ?? JSON.stringify(result, null, 2)) : String(result);
+
         navigator.clipboard.writeText(text).then(() => {
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
@@ -591,8 +721,11 @@ export default function App() {
                     <div className="request-card">
                         {/* Method + URL row */}
                         <div className="url-row">
-                            <select className="method-select" value={method}
-                                    onChange={(e) => handleMethodChange(e.target.value)}>
+                            <select
+                                className="method-select"
+                                value={method}
+                                onChange={(e) => handleMethodChange(e.target.value)}
+                            >
                                 {HTTP_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
                             </select>
                             <input
@@ -624,6 +757,7 @@ export default function App() {
                                 Params
                                 {activeParamsCount > 0 && <span className="req-tab__badge">{activeParamsCount}</span>}
                             </button>
+
                             <button
                                 className={`req-tab${activeTab === "headers" ? " req-tab--active" : ""}`}
                                 onClick={() => setActiveTab("headers")}
@@ -631,6 +765,7 @@ export default function App() {
                                 Headers
                                 {activeHeadersCount > 0 && <span className="req-tab__badge">{activeHeadersCount}</span>}
                             </button>
+
                             {isBodyMethod && (
                                 <button
                                     className={`req-tab${activeTab === "body" ? " req-tab--active" : ""}`}
@@ -644,13 +779,25 @@ export default function App() {
 
                         <div className="payload-scroll">
                             {activeTab === "params" && (
-                                <KeyValueEditor rows={params} onChange={setParams} title="Query Params"
-                                                keyPlaceholder="Key" valuePlaceholder="Value"/>
+                                <KeyValueEditor
+                                    rows={params}
+                                    onChange={setParams}
+                                    title="Query Params"
+                                    keyPlaceholder="Key"
+                                    valuePlaceholder="Value"
+                                />
                             )}
+
                             {activeTab === "headers" && (
-                                <KeyValueEditor rows={headers} onChange={setHeaders} title="Headers"
-                                                keyPlaceholder="Header name" valuePlaceholder="Value"/>
+                                <KeyValueEditor
+                                    rows={headers}
+                                    onChange={setHeaders}
+                                    title="Headers"
+                                    keyPlaceholder="Header name"
+                                    valuePlaceholder="Value"
+                                />
                             )}
+
                             {activeTab === "body" && isBodyMethod && (
                                 <BodyEditor
                                     bodyType={bodyType}
@@ -675,13 +822,22 @@ export default function App() {
 
                         {!walletReady && (
                             <p className="hint">
-                                {isEvm ? "Connect an EVM wallet to send a payment." : "Connect a Solana wallet to send a payment."}
+                                {isEvm ?
+                                    "Connect an EVM wallet to send a payment." :
+                                    "Connect a Solana wallet to send a payment."
+                                }
                             </p>
                         )}
+
                         {error && <div className="error-banner">{error}</div>}
                     </div>
 
-                    <OutputBlock result={result} endpointScheme={detectedScheme} copied={copied} onCopy={handleCopy}/>
+                    <OutputBlock
+                        result={result}
+                        endpointScheme={detectedScheme}
+                        copied={copied}
+                        onCopy={handleCopy}
+                    />
 
                     {settlement && (
                         <div className="settlement">
@@ -689,11 +845,15 @@ export default function App() {
                                 <span>status</span>
                                 <span>{settlement.success ? "settled" : "pending"}</span>
                             </div>
+
                             {settlement.transaction && (
                                 <div className="settlement__row">
                                     <span>tx hash</span>
-                                    <a href={`${settlement._explorerBase ?? "https://sepolia.basescan.org/tx/"}${settlement.transaction}`}
-                                       target="_blank" rel="noreferrer">
+                                    <a
+                                        href={`${settlement._explorerBase ?? "https://basescan.org/tx/"}${settlement.transaction}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    >
                                         {shorten(settlement.transaction, 10, 8)}
                                     </a>
                                 </div>
@@ -704,20 +864,32 @@ export default function App() {
                     <p className="hint hint--muted">
                         {isEvm ? (
                             <>
-                                Testnet funds:{" "}
-                                <a href="https://www.alchemy.com/faucets/base-sepolia" target="_blank" rel="noreferrer">Base
-                                    Sepolia ETH</a>
+                                Testnet funds:
+                                &nbsp;
+                                <a
+                                    href="https://www.alchemy.com/faucets/base-sepolia"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    Base Sepolia ETH
+                                </a>
                                 {" · "}
-                                <a href="https://faucet.circle.com" target="_blank" rel="noreferrer">Circle USDC
-                                    faucet</a>.
-                                {" "}Want <code>batch-settlement</code>?
-                                See <code>scripts/batch-settlement-client.mjs</code>.
+                                <a
+                                    href="https://faucet.circle.com"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    Circle USDC faucet
+                                </a>.
+                                &nbsp;
+                                Want <code>batch-settlement</code>? See <code>scripts/batch-settlement-client.mjs</code>.
                             </>
                         ) : (
                             <>
-                                Solana payments use mainnet USDC. Make sure your Solana wallet has USDC and SOL for
-                                fees.
-                                {" "}Requires <code>SOLANA_PAY_TO_ADDRESS</code> and CDP keys on the server.
+                                Solana payments use mainnet USDC.
+                                Make sure your Solana wallet has USDC and SOL for fees.
+                                &nbsp;
+                                Requires <code>SOLANA_PAY_TO_ADDRESS</code> and CDP keys on the server.
                             </>
                         )}
                     </p>
@@ -730,6 +902,7 @@ export default function App() {
                     </div>
                     <div className="log" ref={logRef}>
                         {log.length === 0 && <div className="log__empty">Nothing sent yet.</div>}
+
                         {log.map((entry) => <LogLine key={entry.id} entry={entry}/>)}
                     </div>
                 </section>

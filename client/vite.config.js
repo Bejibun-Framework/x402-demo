@@ -7,12 +7,22 @@ import {nodePolyfills} from "vite-plugin-node-polyfills";
 export default defineConfig({
     plugins: [
         react(),
-        nodePolyfills({globals: {Buffer: true, global: true, process: true}}),
+        nodePolyfills({
+            globals: {
+                Buffer: true,
+                global: true,
+                process: true
+            }
+        })
     ],
     base: "/x402-playground",
     server: {
         port: 5173,
     },
     // Some WalletConnect deps ship broken .map files; suppress sourcemap noise.
-    optimizeDeps: {esbuildOptions: {sourcemap: false}},
+    optimizeDeps: {
+        esbuildOptions: {
+            sourcemap: false
+        }
+    }
 });
