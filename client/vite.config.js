@@ -15,7 +15,7 @@ export default defineConfig({
             }
         })
     ],
-    base: "/x402-playground",
+    base: "/",
     server: {
         port: 5173,
     },
