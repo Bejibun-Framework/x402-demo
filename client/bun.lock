@@ -10,18 +10,18 @@
         "@solana/wallet-adapter-walletconnect": "^0.1.21",
         "@solana/web3.js": "^1.98.4",
         "@wallet-standard/app": "^1.1.1",
-        "@x402/core": "^2.3.0",
-        "@x402/evm": "^2.9.0",
-        "@x402/fetch": "^2.1.0",
-        "@x402/svm": "^2.16.0",
+        "@x402/core": "^2.17.0",
+        "@x402/evm": "^2.17.0",
+        "@x402/fetch": "^2.17.0",
+        "@x402/svm": "^2.17.0",
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
-        "viem": "^2.21.0",
+        "viem": "^2.53.1",
       },
       "devDependencies": {
-        "@vitejs/plugin-react": "^4.3.1",
+        "@vitejs/plugin-react": "^4.7.0",
         "buffer": "^6.0.3",
-        "vite": "^5.4.0",
+        "vite": "^5.4.21",
         "vite-plugin-node-polyfills": "^0.28.0",
       },
     },
@@ -385,13 +385,13 @@
 
     "@walletconnect/window-metadata": ["@walletconnect/window-metadata@1.0.1", "", { "dependencies": { "@walletconnect/window-getters": "^1.0.1", "tslib": "1.14.1" } }, "sha512-9koTqyGrM2cqFRW517BPY/iEtUDx2r1+Pwwu5m7sJ7ka79wi3EyqhqcICk/yDmv6jAS1rjKgTKXlEhanYjijcA=="],
 
-    "@x402/core": ["@x402/core@2.16.0", "", { "dependencies": { "zod": "^3.24.2" } }, "sha512-7MjwOEiE6ICAYtOsK9vQl66Ho4jERDuuoRg/No2Nc2GQ7y/M/yu4DJ65LzeBycQE+Qrg2RqQG7KR51tyT+hzjQ=="],
+    "@x402/core": ["@x402/core@2.17.0", "", { "dependencies": { "zod": "^3.24.2" } }, "sha512-BBooe9Kewl5KLaKadElFwhZzZ+n/X/m2djzGtc7OY51D8fk2vHTVvDZtBFEJYdJxtQoUZMKX73hew0ss81FENQ=="],
 
-    "@x402/evm": ["@x402/evm@2.16.0", "", { "dependencies": { "@x402/core": "~2.16.0", "viem": "^2.48.11", "zod": "^3.24.2" } }, "sha512-DGcwATWosIb3hmO/CfWASrn+xbxp7KQyzmMPcIW23XuDjo9YPVRElZWtHBur3euakdM021Hl8SPF1zR0G+W4hw=="],
+    "@x402/evm": ["@x402/evm@2.17.0", "", { "dependencies": { "@x402/core": "~2.17.0", "viem": "^2.48.11", "zod": "^3.24.2" } }, "sha512-MjeouRdVJ1Y20Ikk03RHlnyOuo2FRkh0Nnrxt8aku2qt5fr5M7U8pUGn5iR6aFfRK3xlh48bp0Kypv1zjKuegw=="],
 
-    "@x402/fetch": ["@x402/fetch@2.16.0", "", { "dependencies": { "@x402/core": "~2.16.0" } }, "sha512-skW0XsWzi4NIfqCrY6KxhO3UEJ8qh4nBIKIgwWFCXFHNqRKYWZ7qcCI/DHy7cy3jdYs1MV4PoXX24rP3Umca1Q=="],
+    "@x402/fetch": ["@x402/fetch@2.17.0", "", { "dependencies": { "@x402/core": "~2.17.0" } }, "sha512-iy6ar1JTgs4gzdlc2q2Z7nuL5keBkQhoD4v5niVlTwLoivVvHnAA0p/wK5WTWRrJ1b+el8pthkjFS0Jc3nMIIg=="],
 
-    "@x402/svm": ["@x402/svm@2.16.0", "", { "dependencies": { "@solana-program/compute-budget": "^0.11.0", "@solana-program/token": "^0.9.0", "@solana-program/token-2022": "^0.6.1", "@x402/core": "~2.16.0" }, "peerDependencies": { "@solana/kit": ">=5.1.0" } }, "sha512-hxggK4PYjfI5CdsbDeVe9JDS70uPMlfFrpOaEPBo5aQ/wtFq/7ydkiUxKXozlhRw9KFqOue9zUGrPsHLCokTTw=="],
+    "@x402/svm": ["@x402/svm@2.17.0", "", { "dependencies": { "@solana-program/compute-budget": "^0.11.0", "@solana-program/token": "^0.9.0", "@solana-program/token-2022": "^0.6.1", "@x402/core": "~2.17.0" }, "peerDependencies": { "@solana/kit": ">=5.1.0" } }, "sha512-BXSaLBBoP8bfBAKDdwg7c2UYuTfbZOB7gZByCK3LWkROqmTnqxQlQ683urfpYwbvlK0EbZ3TIcqR/Rx42EuVzw=="],
 
     "abitype": ["abitype@1.2.3", "", { "peerDependencies": { "typescript": ">=5.0.4", "zod": "^3.22.0 || ^4.0.0" }, "optionalPeers": ["typescript"] }, "sha512-Ofer5QUnuUdTFsBRwARMoWKOH1ND5ehwYhJ3OJ/BQO+StkwQjHw0XyVh4vDttzHB7QOFhPHa/o413PJ82gU/Tg=="],
 
